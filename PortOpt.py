@@ -26,14 +26,20 @@ def calculate_portfolio_volatility(weights, cov_matrix):
     # Calculate the annualized volatility of a portfolio
     return np.sqrt(calculate_portfolio_variance(weights, cov_matrix)) * np.sqrt(252)
 
-def optimize_portfolio(returns):
-    # Perform portfolio optimization
+def negative_sharpe_ratio(weights, returns, risk_free_rate):
+    portfolio_return = calculate_portfolio_return(weights, returns)
+    portfolio_volatility = calculate_portfolio_volatility(weights, returns.cov())
+    sharpe = (portfolio_return - risk_free_rate) / portfolio_volatility
+    return -sharpe  # We negate it because we're minimizing
+
+def optimize_portfolio(returns, risk_free_rate=0.02):
     num_assets = len(returns.columns)
-    args = (returns.cov(),)
+    args = (returns, risk_free_rate)
     constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
     bounds = tuple((0, 1) for asset in range(num_assets))
     initial_weights = num_assets * [1. / num_assets]
-    optimal_weights = minimize(calculate_portfolio_volatility, initial_weights, args=args,
+    
+    optimal_weights = minimize(negative_sharpe_ratio, initial_weights, args=args,
                                method='SLSQP', bounds=bounds, constraints=constraints)
     return optimal_weights.x
 
@@ -95,17 +101,23 @@ def simulate_portfolio_performance(ave_return, ave_std, num_years, initial_inves
     print(f"Initial Investment: ${initial_investment:.2f}")
     print(f"Final Portfolio Value: ${total_return:.2f}")
 
-# Example usage
-tickers = ['msft', 'bac', 'xom', 'tsla']
-start_date = '2011-01-01'
-end_date = '2024-04-08'
-num_years = 10
-initial_investment = 1000
+def main(): 
+    # Example usage
+    tickers = ['msft', 'bac', 'xom', 'tsla']
+    start_date = '2011-01-01'
+    end_date = '2024-04-08'
+    num_years = 10
+    initial_investment = 1000
 
-stock_data = get_stock_data(tickers, start_date, end_date)
-returns = calculate_returns(stock_data)
-optimal_weights = optimize_portfolio(returns)
-results = plot_efficient_frontier(returns, optimal_weights)
-#print(results[1])
-#print(results[0])
-simulate_portfolio_performance(results[0], results[1], num_years, initial_investment)
+    stock_data = get_stock_data(tickers, start_date, end_date)
+    returns = calculate_returns(stock_data)
+    optimal_weights = optimize_portfolio(returns)
+    results = plot_efficient_frontier(returns, optimal_weights)
+    #print(results[1])
+    #print(results[0])
+    simulate_portfolio_performance(results[0], results[1], num_years, initial_investment)
+
+
+if __name__ == "__main__": 
+    main()
+    
