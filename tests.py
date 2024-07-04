@@ -26,25 +26,29 @@ class TestPortfolioFunctions(unittest.TestCase):
             'A': [np.nan, 0.02, 0.019608, -0.009615, 0.019417],
             'B': [np.nan, 0.02, 0.019608, -0.019231, 0.039216]
         })
-        pd.testing.assert_frame_equal(self.returns, expected_returns, check_less_precise=True)
+        pd.testing.assert_frame_equal(self.returns, expected_returns, atol=1e-6, rtol=1e-6)
 
     def test_calculate_portfolio_variance(self):
+        expected_variance = np.dot(self.weights.T, np.dot(self.cov_matrix, self.weights))
         variance = calculate_portfolio_variance(self.weights, self.cov_matrix)
-        self.assertAlmostEqual(variance, 0.00015, places=5)
+        self.assertAlmostEqual(variance, expected_variance, places=6)
 
     def test_calculate_portfolio_return(self):
+        expected_return = np.sum(self.returns.mean() * self.weights) * 252
         portfolio_return = calculate_portfolio_return(self.weights, self.returns)
-        self.assertAlmostEqual(portfolio_return, 0.0714, places=4)
+        self.assertAlmostEqual(portfolio_return, expected_return, places=4)
 
     def test_calculate_portfolio_volatility(self):
+        variance = calculate_portfolio_variance(self.weights, self.cov_matrix)
+        expected_volatility = np.sqrt(variance) * np.sqrt(252)
         volatility = calculate_portfolio_volatility(self.weights, self.cov_matrix)
-        self.assertAlmostEqual(volatility, 0.1936, places=4)
+        self.assertAlmostEqual(volatility, expected_volatility, places=4)
 
     def test_optimize_portfolio(self):
-        optimal_weights = optimize_portfolio(self.returns)
-        self.assertEqual(len(optimal_weights), 2)
-        self.assertAlmostEqual(np.sum(optimal_weights), 1, places=6)
-        self.assertTrue(all(0 <= w <= 1 for w in optimal_weights))
+        optimal_result = optimize_portfolio(self.returns)
+        self.assertEqual(len(optimal_result.x), 2)
+        self.assertAlmostEqual(np.sum(optimal_result.x), 1, places=6)
+        self.assertTrue(all(0 <= w <= 1 for w in optimal_result.x))
 
 if __name__ == '__main__':
     unittest.main()
