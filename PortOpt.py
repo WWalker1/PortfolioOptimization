@@ -39,11 +39,11 @@ def optimize_portfolio(returns, risk_free_rate=0.02):
     bounds = tuple((0, 1) for asset in range(num_assets))
     initial_weights = num_assets * [1. / num_assets]
     
-    optimal_weights = minimize(negative_sharpe_ratio, initial_weights, args=args,
+    optimal_result = minimize(negative_sharpe_ratio, initial_weights, args=args,
                                method='SLSQP', bounds=bounds, constraints=constraints)
-    return optimal_weights.x
+    return optimal_result
 
-def plot_efficient_frontier(returns, optimal_weights):
+def plot_efficient_frontier(returns, optimal_result, risk_free_rate=0.02):
     # Generate random portfolios and plot the efficient frontier
     num_portfolios = 10000
     results = np.zeros((3, num_portfolios))
@@ -56,26 +56,31 @@ def plot_efficient_frontier(returns, optimal_weights):
         portfolio_volatility = calculate_portfolio_volatility(weights, returns.cov())
         results[0, i] = portfolio_return
         results[1, i] = portfolio_volatility
-        results[2, i] = (portfolio_return - 0.02) / portfolio_volatility
+        results[2, i] = (portfolio_return - risk_free_rate) / portfolio_volatility
     
-    max_sharpe_idx = np.argmax(results[2])
-    sdp, rp = results[1, max_sharpe_idx], results[0, max_sharpe_idx]
-    max_sharpe_allocation = weights_record[max_sharpe_idx]
+    optimal_weights = optimal_result.x
+    optimal_return = calculate_portfolio_return(optimal_weights, returns)
+    optimal_volatility = calculate_portfolio_volatility(optimal_weights, returns.cov())
+    optimal_sharpe = (optimal_return - risk_free_rate) / optimal_volatility
     
     plt.figure(figsize=(10, 7))
     plt.scatter(results[1, :], results[0, :], c=results[2, :], cmap='viridis')
     plt.colorbar(label='Sharpe Ratio')
     plt.xlabel('Volatility')
     plt.ylabel('Return')
-    plt.plot(sdp, rp, 'r*', markersize=15)
+    plt.plot(optimal_volatility, optimal_return, 'r*', markersize=15)
     plt.grid(True)
     plt.show()
     
-    print("Optimal Weights:", optimal_weights)
-    print("Sharpe Ratio:", results[2, max_sharpe_idx])
-    print("Volatility:", results[1, max_sharpe_idx])
-    print("Return:", results[0, max_sharpe_idx])
-    return results[:,max_sharpe_idx] # returns average return, average volatility, and sharpe ratio of the best portfolio found
+    print("Stocks and their optimal weights:")
+    for stock, weight in zip(returns.columns, optimal_weights):
+        print(f"{stock}: {weight:.4f}")
+    print("\nOptimal Portfolio:")
+    print(f"Sharpe Ratio: {optimal_sharpe:.4f}")
+    print(f"Volatility: {optimal_volatility:.4f}")
+    print(f"Return: {optimal_return:.4f}")
+    
+    return optimal_return, optimal_volatility, optimal_sharpe
 
 def simulate_portfolio_performance(ave_return, ave_std, num_years, initial_investment=1000):
     total_return = initial_investment
@@ -103,21 +108,18 @@ def simulate_portfolio_performance(ave_return, ave_std, num_years, initial_inves
 
 def main(): 
     # Example usage
-    tickers = ['msft', 'bac', 'xom', 'tsla']
-    start_date = '2011-01-01'
+    tickers = ['MSFT', 'BAC', 'XOM', 'TSLA']
+    start_date = '2015-01-01'
     end_date = '2024-04-08'
     num_years = 10
     initial_investment = 1000
+    risk_free_rate = 0.02
 
     stock_data = get_stock_data(tickers, start_date, end_date)
     returns = calculate_returns(stock_data)
-    optimal_weights = optimize_portfolio(returns)
-    results = plot_efficient_frontier(returns, optimal_weights)
-    #print(results[1])
-    #print(results[0])
-    simulate_portfolio_performance(results[0], results[1], num_years, initial_investment)
-
+    optimal_result = optimize_portfolio(returns, risk_free_rate)
+    optimal_return, optimal_volatility, optimal_sharpe = plot_efficient_frontier(returns, optimal_result, risk_free_rate)
+    simulate_portfolio_performance(optimal_return, optimal_volatility, num_years, initial_investment)
 
 if __name__ == "__main__": 
     main()
-    
