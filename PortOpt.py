@@ -58,7 +58,7 @@ def optimize_portfolio(returns, risk_free_rate=0.02):
                                method='SLSQP', bounds=bounds, constraints=constraints)
     return optimal_result
 
-def plot_efficient_frontier(returns, optimal_result, risk_free_rate=0.02):
+def plot_efficient_frontier(returns, optimal_result, risk_free_rate, width, height):
     num_portfolios = 500  # number of random portfolios generated
     num_assets = len(returns.columns)
     
@@ -91,67 +91,36 @@ def plot_efficient_frontier(returns, optimal_result, risk_free_rate=0.02):
     stock_volatilities = returns.std() * np.sqrt(252)
     stock_sharpe_ratios = (stock_returns - risk_free_rate) / stock_volatilities
 
-    # Create the plot
-    fig = go.Figure()
+    dpi = 100  # Adjust this value if needed
+    fig, ax = plt.subplots(figsize=(width/dpi, height/dpi), dpi=dpi)
+    
+    # Calculate proportional sizes
+    point_size = width * height / 40000
+    font_size_small = min(width, height) / 100
+    font_size_medium = min(width, height) / 80
+    font_size_large = min(width, height) / 60
 
-    # Add efficient frontier portfolios
-    scatter = go.Scatter(
-        x=results[1, :],
-        y=results[0, :],
-        mode='markers',
-        marker=dict(
-            size=5,
-            color=results[2, :],
-            colorscale='Viridis',
-            colorbar=dict(title='Sharpe Ratio')
-        ),
-        name='Portfolios',
-        hoverinfo='none'
-    )
-    fig.add_trace(scatter)
-
-    # Add individual stocks
-    for ticker, return_, volatility, sharpe in zip(returns.columns, stock_returns, stock_volatilities, stock_sharpe_ratios):
-        stock_scatter = go.Scatter(
-            x=[volatility],
-            y=[return_],
-            mode='markers',
-            marker=dict(size=10, color='red'),
-            name=ticker,
-            text=f"{ticker}<br>Sharpe Ratio: {sharpe:.4f}",
-            hoverinfo='text'
-        )
-        fig.add_trace(stock_scatter)
-
-    # Add optimal portfolio
-    optimal_scatter = go.Scatter(
-        x=[optimal_volatility],
-        y=[optimal_return],
-        mode='markers',
-        marker=dict(size=15, color='green', symbol='star'),
-        name='Optimal Portfolio',
-        text=f"Optimal Portfolio<br>Sharpe Ratio: {optimal_sharpe:.4f}",
-        hoverinfo='text'
-    )
-    fig.add_trace(optimal_scatter)
-
-    fig.update_layout(
-        title='Efficient Frontier',
-        xaxis_title='Volatility',
-        yaxis_title='Return',
-        showlegend=True,
-        width=1000,
-        height=800,
-        legend=dict(
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=0.01,
-            bgcolor="rgba(255, 255, 255, 0.5)"
-        )
-    )
-
-    fig.show()
+    # Plot efficient frontier
+    scatter = ax.scatter(results[1, :], results[0, :], c=results[2, :], cmap='viridis', s=point_size)
+    cbar = plt.colorbar(scatter)
+    cbar.set_label('Sharpe Ratio', fontsize=font_size_medium)
+    cbar.ax.tick_params(labelsize=font_size_small)
+    
+    # Plot individual stocks
+    for ticker, return_, volatility in zip(returns.columns, stock_returns, stock_volatilities):
+        ax.scatter(volatility, return_, color='red', s=point_size*2)
+        ax.annotate(ticker, (volatility, return_), xytext=(5, 5), textcoords='offset points', fontsize=font_size_small)
+    
+    # Plot optimal portfolio
+    ax.scatter(optimal_volatility, optimal_return, color='green', marker='*', s=point_size*4, label='Optimal Portfolio')
+    
+    ax.set_xlabel('Volatility', fontsize=font_size_medium)
+    ax.set_ylabel('Return', fontsize=font_size_medium)
+    ax.set_title('Efficient Frontier', fontsize=font_size_large)
+    ax.legend(fontsize=font_size_small)
+    ax.tick_params(axis='both', which='major', labelsize=font_size_small)
+    
+    plt.tight_layout()
 
     print("Stocks and their optimal weights:")
     for stock, weight in zip(returns.columns, optimal_weights):
@@ -161,7 +130,8 @@ def plot_efficient_frontier(returns, optimal_result, risk_free_rate=0.02):
     print(f"Volatility: {optimal_volatility:.4f}")
     print(f"Return: {optimal_return:.4f}")
 
-    return optimal_return, optimal_volatility, optimal_sharpe
+    return fig, optimal_return, optimal_volatility, optimal_sharpe
+
 
 def simulate_portfolio_performance(ave_return, ave_std, num_years, initial_investment=1000):
     """
@@ -194,7 +164,7 @@ def simulate_portfolio_performance(ave_return, ave_std, num_years, initial_inves
     print(f"Final Portfolio Value: ${total_return:.2f}")
 
 def main():
-    tickers = ['xom', 'msft', 'aapl', 'tsla']
+    tickers = ['o', 'cost', 'aapl', 'gs']
     start_date = '2015-01-01'
     end_date = '2024-04-08'
     num_years = 10
