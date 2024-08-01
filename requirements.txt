@@ -1,0 +1,6 @@
+yfinance
+pyqt5
+matplotlib
+plotly
+pandas
+numpy 
